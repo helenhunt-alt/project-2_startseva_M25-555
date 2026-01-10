@@ -6,6 +6,7 @@ import os
 DATA_DIR = "data"
 META_FILE = os.path.join(DATA_DIR, "db_meta.json")
 
+
 def load_metadata():
     os.makedirs(DATA_DIR, exist_ok=True)
     try:
@@ -14,10 +15,12 @@ def load_metadata():
     except FileNotFoundError:
         return {}
 
+
 def save_metadata(data):
     os.makedirs(DATA_DIR, exist_ok=True)
     with open(META_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
+
 
 def load_table_data(table_name):
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -27,6 +30,7 @@ def load_table_data(table_name):
             return json.load(f)
     except FileNotFoundError:
         return []
+
 
 def save_table_data(table_name, data):
     os.makedirs(DATA_DIR, exist_ok=True)

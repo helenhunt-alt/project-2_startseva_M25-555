@@ -56,6 +56,7 @@ def print_help():
     print("help - показать справку")
     print("exit - выход из программы\n")
 
+
 def print_table(data):
     if not data:
         print("Нет записей для отображения.")
@@ -66,6 +67,7 @@ def print_table(data):
     for row in data:
         table.add_row([row[h] for h in headers])
     print(table)
+
 
 def run():
     print_help()
@@ -89,6 +91,7 @@ def run():
             break
         elif command == "help":
             print_help()
+
         elif command == "create_table":
             if len(args) < 2:
                 print(
@@ -100,19 +103,30 @@ def run():
             columns = args[2:]
             metadata = create_table(metadata, table_name, columns)
             save_metadata(metadata)
+
         elif command == "drop_table":
             if len(args) != 2:
                 print(f"Некорректное значение: {' '.join(args[1:])}. Попробуйте снова.")
                 continue
             table_name = args[1]
-            metadata = drop_table(metadata, table_name)
-            save_metadata(metadata)
+            metadata_new = drop_table(metadata, table_name)
+            if metadata_new is not None:
+                metadata = metadata_new
+                save_metadata(metadata)
+
         elif command == "list_tables":
             list_tables(metadata)
 
         elif command == "insert":
-            if len(args) < 4 or args[1].lower() != "into" or args[3].lower() != "values":
-                print("Некорректная команда insert. Формат: insert into <table> values (<values>)")
+            if (
+                len(args) < 4 
+                or args[1].lower() != "into" 
+                or args[3].lower() != "values"
+            ):
+                print(
+                    "Некорректная команда insert. "
+                    "Формат: insert into <table> values (<values>)"
+                )
                 continue
             table_name = args[2]
             values_str = user_input[user_input.find("(")+1:user_input.rfind(")")]
@@ -123,25 +137,29 @@ def run():
 
         elif command == "select":
             if len(args) < 3 or args[1].lower() != "from":
-                print("Некорректная команда select. Формат: select from <table> [where <condition>]")
+                print(
+                    "Некорректная команда select. "
+                    "Формат: select from <table> [where <condition>]"
+                )
                 continue
             table_name = args[2]
             table_data = load_table_data(table_name)
             where_clause = None
             if "where" in args:
-                where_index = args.index("where")
                 condition_str = user_input.split("where",1)[1].strip()
                 where_clause = parse_condition(condition_str)
             result = select(table_data, where_clause)
-            print_table(result)
+            if result is not None:
+                print_table(result)
 
         elif command == "update":
             if len(args) < 6 or args[2].lower() != "set" or "where" not in args:
-                print("Некорректная команда update. Формат: update <table> set <col=val,...> where <condition>")
+                print(
+                    "Некорректная команда update. "
+                    "Формат: update <table> set <col=val,...> where <condition>"
+                )
                 continue
             table_name = args[1]
-            set_index = args.index("set")
-            where_index = args.index("where")
             set_str = user_input.split("set",1)[1].split("where")[0].strip()
             where_str = user_input.split("where",1)[1].strip()
             set_clause = parse_set_clause(set_str)
@@ -152,14 +170,21 @@ def run():
 
         elif command == "delete":
             if len(args) < 5 or args[1].lower() != "from" or "where" not in args:
-                print("Некорректная команда delete. Формат: delete from <table> where <condition>")
+                print(
+                "Некорректная команда delete. "
+                "Формат: delete from <table> where <condition>"
+                )
                 continue
             table_name = args[2]
             where_str = user_input.split("where",1)[1].strip()
             where_clause = parse_condition(where_str)
             table_data = load_table_data(table_name)
-            table_data = delete(table_data, where_clause)
-            save_table_data(table_name, table_data)
+            if not table_data:  # <-- минимальная проверка
+                print("Ошибка валидации: Таблица пуста, удалять нечего.")
+                continue
+            table_data_new = delete(table_data, where_clause)
+            if table_data_new is not None:
+                save_table_data(table_name, table_data_new)
 
         elif command == "info":
             if len(args) != 2:

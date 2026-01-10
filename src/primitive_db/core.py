@@ -1,25 +1,33 @@
 # src/primitive_db/core.py
 
+from src.decorators import (
+    confirm_action,
+    create_cacher,
+    handle_db_errors,
+    log_time,
+)
+
 VALID_TYPES = {"int", "str", "bool"}
 
+cache_result = create_cacher()
+
+
+@handle_db_errors
 def create_table(metadata, table_name, columns):
     table_name = table_name.strip()
     if table_name in metadata:
-        print(f'Ошибка: Таблица "{table_name}" уже существует.')
-        return metadata
+        raise KeyError(f'Таблица "{table_name}" уже существует.')
 
     table_columns = [("ID", "int")] 
 
     for col in columns:
         if ":" not in col:
-            print(f'Некорректное значение: {col}. Попробуйте снова.')
-            return metadata
+            raise ValueError(f'Некорректное значение: {col}. Формат <имя>:<тип>.')
         col_name, col_type = col.split(":", 1)
         col_name = col_name.strip()
         col_type = col_type.strip().lower()
         if col_type not in VALID_TYPES:
-            print(f'Некорректное значение: {col}. Попробуйте снова.')
-            return metadata
+            raise ValueError(f'Некорректный тип для столбца {col_name}: {col_type}')
         table_columns.append((col_name, col_type))
 
     metadata[table_name] = table_columns
@@ -28,11 +36,12 @@ def create_table(metadata, table_name, columns):
     return metadata
 
 
+@handle_db_errors
+@confirm_action("удаление таблицы")
 def drop_table(metadata, table_name):
     table_name = table_name.strip()
     if table_name not in metadata:
-        print(f'Ошибка: Таблица "{table_name}" не существует.')
-        return metadata
+        raise KeyError(f'Таблица "{table_name}" не существует.')
 
     del metadata[table_name]
     print(f'Таблица "{table_name}" успешно удалена.')
@@ -45,21 +54,19 @@ def list_tables(metadata):
         for table_name in metadata:
             print(f"- {table_name}")
 
+
+@handle_db_errors
+@log_time
 def insert(metadata, table_name, table_data, values):
     if table_name not in metadata:
-        print(f'Ошибка: Таблица "{table_name}" не существует.')
-        return table_data
+        raise KeyError(f'Таблица "{table_name}" не существует.')
 
     columns = metadata[table_name]
     if len(values) != len(columns) - 1:
-        print('Ошибка: количество значений не совпадает с количеством столбцов.')
-        return table_data
+        raise ValueError("Количество значений не совпадает с количеством столбцов.")
 
     record = {}
-    if table_data:
-        new_id = max(row["ID"] for row in table_data) + 1
-    else:
-        new_id = 1
+    new_id = max((row["ID"] for row in table_data), default=0) + 1
     record["ID"] = new_id
 
     for i, (col_name, col_type) in enumerate(columns[1:]):
@@ -75,14 +82,17 @@ def insert(metadata, table_name, table_data, values):
                     elif val in ("false", "0"):
                         val = False
                     else:
-                        raise ValueError
+                        raise ValueError(
+                           f'Некорректное значение для столбца {col_name}: {values[i]}'
+                        )
                 else:
                     val = bool(val)
-            else:  # str
+            else:
                 val = str(val)
-        except ValueError:
-            print(f'Некорректное значение для столбца {col_name}: {values[i]}')
-            return table_data
+        except ValueError as e:
+            raise ValueError(
+                f'Некорректное значение для столбца {col_name}: {values[i]}'
+                ) from e
         record[col_name] = val
 
     table_data.append(record)
@@ -90,61 +100,60 @@ def insert(metadata, table_name, table_data, values):
     return table_data
 
 
+@handle_db_errors
+@log_time
 def select(table_data, where_clause=None):
-    if not table_data:
-        return []
+    if table_data is None or not table_data:
+        raise ValueError("Таблица пуста, выбирать нечего.")
 
-    if not where_clause:
-        return table_data
+    key = str(where_clause) if where_clause else "all"
 
-    filtered = []
-    for row in table_data:
-        match = True
-        for k, v in where_clause.items():
-            if row.get(k) != v:
-                match = False
-                break
-        if match:
-            filtered.append(row)
-    return filtered
+    def compute_result():
+        if not where_clause:
+            return table_data
+        filtered = []
+        for row in table_data:
+            if all(row.get(k) == v for k, v in where_clause.items()):
+                filtered.append(row)
+        return filtered
+
+    return cache_result(key, compute_result)
 
 
+@handle_db_errors
 def update(table_data, set_clause, where_clause):
+    if table_data is None or not table_data:
+        raise ValueError("Таблица пуста, обновлять нечего.")
+
     updated_count = 0
     for row in table_data:
-        match = True
-        for k, v in where_clause.items():
-            if row.get(k) != v:
-                match = False
-                break
-        if match:
+        if all(row.get(k) == v for k, v in where_clause.items()):
             for k, v in set_clause.items():
                 row[k] = v
             updated_count += 1
 
-    if updated_count:
-        print(f'{updated_count} запись(и) успешно обновлены.')
-    else:
-        print("Нет подходящих записей для обновления.")
+    if updated_count == 0:
+        print("Ошибка валидации: Нет подходящих записей для обновления.")
+        return table_data
+    print(f'{updated_count} запись(и) успешно обновлены.')
     return table_data
 
 
+@handle_db_errors
+@confirm_action("удаление записей")
 def delete(table_data, where_clause):
+    if table_data is None or not table_data:
+        raise ValueError("Таблица пуста, удалять нечего.")
+
     new_data = []
     deleted_count = 0
     for row in table_data:
-        match = True
-        for k, v in where_clause.items():
-            if row.get(k) != v:
-                match = False
-                break
-        if match:
+        if all(row.get(k) == v for k, v in where_clause.items()):
             deleted_count += 1
-            continue
-        new_data.append(row)
+        else:
+            new_data.append(row)
 
-    if deleted_count:
-        print(f'{deleted_count} запись(и) успешно удалены.')
-    else:
-        print("Нет подходящих записей для удаления.")
+    if deleted_count == 0:
+        raise ValueError("Нет подходящих записей для удаления.")
+    print(f'{deleted_count} запись(и) успешно удалены.')
     return new_data
