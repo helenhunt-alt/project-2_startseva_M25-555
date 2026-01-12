@@ -5,6 +5,7 @@ from functools import wraps
 
 
 def handle_db_errors(func):
+    """Обрабатывает ошибки базы данных при вызове функции."""
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -24,6 +25,7 @@ def handle_db_errors(func):
 
 
 def confirm_action(action_name):
+    """Запрашивает подтверждение пользователя перед выполнением функции."""
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -39,6 +41,7 @@ def confirm_action(action_name):
 
 
 def log_time(func):
+    """Выводит время выполнения функции в секундах."""
     @wraps(func)
     def wrapper(*args, **kwargs):
         start = time.monotonic()
@@ -51,6 +54,7 @@ def log_time(func):
 
 
 def create_cacher():
+    """Создаёт замыкание для кэширования результатов функций."""
     cache = {}
 
     def cache_result(key, value_func):
@@ -59,5 +63,5 @@ def create_cacher():
         result = value_func()
         cache[key] = result
         return result
-
+    cache_result.clear = cache.clear
     return cache_result

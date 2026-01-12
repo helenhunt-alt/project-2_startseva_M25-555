@@ -4,6 +4,11 @@ import shlex
 
 
 def parse_condition(condition_str):
+    """
+    Преобразует строку условия вида 'col=val' в словарь {col: val}.
+    Поддерживает int, float, bool и str.
+    Возвращает пустой словарь при некорректном формате.
+    """
     if not condition_str:
         return {}
 
@@ -32,4 +37,16 @@ def parse_condition(condition_str):
 
 
 def parse_set_clause(set_str):
-    return parse_condition(set_str)
+    """
+    Преобразует строку вида 'col1=val1, col2=val2' в словарь {col1: val1, col2: val2}.
+    Использует parse_condition для обработки каждого элемента.
+    Возвращает пустой словарь при ошибке формата.
+    """
+    result = {}
+    parts = [p.strip() for p in set_str.split(",")]
+    for part in parts:
+        condition = parse_condition(part)
+        if not condition:
+            return {}
+        result.update(condition)
+    return result

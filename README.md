@@ -18,6 +18,7 @@
 
 Информация о таблицах (имена и структура столбцов) хранится в `db_meta.json`.  
 Работа с базой данных осуществляется через интерактивный консольный интерфейс.
+> Папка data/ создается автоматически при первом запуске программы и хранит файлы с метаданными и данными таблиц.
 
 ---
 
@@ -120,17 +121,30 @@
 
 ### Установка зависимостей
 ```bash
-poetry install
+make install
 ```
+Выполняет poetry install и устанавливает все зависимости.
 
-### Сборка и установка пакета
+### Сборка пакета
 ```bash
-poetry build
-pip install dist/*.whl
+make build
 ```
+Собирает пакет в формате .whl и .tar.gz в папку dist/.
+
+### Установка пакета
+```bash
+make package-install
+```
+Устанавливает собранный пакет из dist/ через pip.
 
 ### Запуск программы
-После установки пакета в терминале доступна команда:
+После установки пакета доступны два варианта запуска:
+
+1. Через Makefile:
+```bash
+make project
+```
+2. Через установленный пакет напрямую:
 ```bash
 database
 ```
@@ -142,19 +156,17 @@ $ database
 Введите команду: create_table users name:str age:int is_active:bool
 Таблица "users" успешно создана со столбцами: ID:int, name:str, age:int, is_active:bool
 
-Введите команду: insert users ["Alice", 25, true]
+Введите команду: insert into users values (Alice, 30, true)
 Запись с ID=1 успешно добавлена в таблицу "users".
-Функция insert выполнилась за 0.002 секунд.
+Функция insert выполнилась за 0.000 секунд.
 
-Введите команду: select users
-# Результат выборки кэшируется
-Функция select выполнилась за 0.001 секунд.
-
-Введите команду: select users
-# Декоратор create_cacher возвращает данные из кэша
+Введите команду: select from users
 Функция select выполнилась за 0.000 секунд.
 
-Введите команду: delete users {"name":"Alice"}
+Введите команду: select from users
+Функция select выполнилась за 0.000 секунд.
+
+Введите команду: delete from users where name = Alice
 Вы уверены, что хотите выполнить "удаление записей"? [y/n]: n
 Операция "удаление записей" отменена.
 
@@ -165,24 +177,25 @@ $ database
 
 ### Демонстрация работы базы данных
 
-[Демо на Asciinema](https://asciinema.org/a/HabSxaypqDUkDXQK)
+[![asciicast](https://asciinema.org/a/HabSxaypqDUkDXQK.svg)](https://asciinema.org/a/HabSxaypqDUkDXQK)
 
 ### Демонстрация работы декораторов
 
-[Демо на Asciinema](https://asciinema.org/a/FslvLutBAafaX1hf)
+[![asciicast](https://asciinema.org/a/FslvLutBAafaX1hf.svg)](https://asciinema.org/a/FslvLutBAafaX1hf)
 
 ### Структура проекта
 ```bash
-├── data/
 ├── src/
 │   ├── primitive_db/
+│   │   ├── __init__.py
+│   │   ├── constants.py
 │   │   ├── core.py
+│   │   ├── decorators.py
 │   │   ├── engine.py
 │   │   ├── main.py
 │   │   ├── parser.py
-│   │   ├── utils.py
-│   │   └── __init__.py
-│   └── decorators.py
+│   │   └── utils.py
+│   └── __init__.py
 ├── .gitignore
 ├── Makefile
 ├── poetry.lock

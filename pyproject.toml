@@ -1,9 +1,9 @@
 [project]
 name = "project-2-startseva-m25-555"
 version = "0.1.0"
-description = ""
+description = "Консольное приложение — примитивная база данных"
 authors = [
-    {name = "Your Name",email = "you@example.com"}
+    {name = "Elena Startseva",email = "startseva.helen.v@yandex.ru"}
 ]
 readme = "README.md"
 requires-python = ">=3.12"
